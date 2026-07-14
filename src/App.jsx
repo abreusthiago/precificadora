@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import html2pdf from 'html2pdf.js'
 import logoT3D from './assets/logo-t3d.jpg'
 
 const initialValues = {
@@ -14,6 +15,10 @@ const initialValues = {
   currentUnit: 'cm',
   desiredSize: '',
   desiredUnit: 'cm',
+  companyName: '',
+  clientName: '',
+  productDescription: '',
+  quoteExpiryDate: '',
 }
 
 const fieldConfig = [
@@ -97,8 +102,19 @@ function formatNumber(value, options = {}) {
   }).format(value)
 }
 
+function formatDate(date) {
+  if (!date) return 'Não informada'
+  const parsed = new Date(`${date}T00:00:00`)
+  if (Number.isNaN(parsed.getTime())) return 'Não informada'
+
+  return new Intl.DateTimeFormat('pt-BR').format(parsed)
+}
+
 export default function App() {
   const [values, setValues] = useState(initialValues)
+  const [uploadedLogo, setUploadedLogo] = useState('')
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+  const pdfRef = useRef(null)
 
   const numericValues = useMemo(() => {
     const filamentKgPrice = parsePositiveNumber(values.filamentKgPrice)
@@ -166,16 +182,40 @@ export default function App() {
     }
   }
 
+  const handleTextChange = (key) => (event) => {
+    const nextValue = event.target.value
+    setValues((current) => ({ ...current, [key]: nextValue }))
+  }
+
   const handleUnitChange = (key) => (event) => {
     const nextValue = event.target.value
     setValues((current) => ({ ...current, [key]: nextValue }))
   }
 
-  const resetForm = () => setValues(initialValues)
+  const handleLogoUpload = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      setUploadedLogo(reader.result?.toString() || '')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const resetForm = () => {
+    setValues(initialValues)
+    setUploadedLogo('')
+  }
 
   const copySummary = async () => {
     const text = [
       'Orçamento de impressão 3D',
+      `Empresa: ${values.companyName || 'Não informada'}`,
+      `Cliente: ${values.clientName || 'Não informado'}`,
+      `Descrição do produto: ${values.productDescription || 'Não informada'}`,
+      `Validade do orçamento: ${formatDate(values.quoteExpiryDate)}`,
+      '',
       `Custo de material: ${formatCurrency(numericValues.materialCost)}`,
       `Custo de energia: ${formatCurrency(numericValues.energyCost)}`,
       `Custo da embalagem: ${formatCurrency(numericValues.packagingCost)}`,
@@ -199,6 +239,32 @@ export default function App() {
     }
   }
 
+  const generatePdf = async () => {
+    if (!pdfRef.current) return
+
+    setIsGeneratingPdf(true)
+
+    const clientSlug = values.clientName
+      ? values.clientName.toLowerCase().trim().replace(/\s+/g, '-')
+      : 'cliente'
+
+    const options = {
+      margin: 10,
+      filename: `orcamento-${clientSlug}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    }
+
+    try {
+      await html2pdf().set(options).from(pdfRef.current).save()
+    } catch {
+      window.alert('Não foi possível gerar o PDF.')
+    } finally {
+      setIsGeneratingPdf(false)
+    }
+  }
+
   return (
     <div className="app-shell">
       <main className="container">
@@ -213,13 +279,13 @@ export default function App() {
 
               <div>
                 <span className="eyebrow">T3D · Tudo em 3D</span>
-                <h1>Calcule o preço e a escala da sua impressão 3D</h1>
+                <h1>Calcule o preço, a escala e gere o orçamento em PDF</h1>
               </div>
             </div>
 
             <p>
-              Descubra por quanto vender sua peça e também descubra qual porcentagem de
-              escala usar para ampliar ou reduzir o modelo até o tamanho desejado.
+              Informe os custos da peça, defina a escala desejada e preencha os
+              dados do orçamento para gerar um PDF profissional para seu cliente.
             </p>
           </div>
 
@@ -383,6 +449,143 @@ export default function App() {
               Tamanho atual: {formatNumber(scaleValues.currentSizeMm)} mm ·
               Tamanho desejado: {formatNumber(scaleValues.desiredSizeMm)} mm
             </small>
+          </div>
+        </section>
+
+        <section className="panel quote-panel">
+          <div className="panel-header">
+            <h2>Dados do orçamento</h2>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={generatePdf}
+              disabled={isGeneratingPdf}
+            >
+              {isGeneratingPdf ? 'Gerando PDF...' : 'Gerar orçamento em PDF'}
+            </button>
+          </div>
+
+          <div className="quote-grid">
+            <label className="field">
+              <span className="field-label">Logo da empresa</span>
+              <div className="input-wrap file-input-wrap">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg"
+                  onChange={handleLogoUpload}
+                  aria-label="Logo da empresa"
+                />
+              </div>
+              <small>Envie uma imagem JPG ou PNG para aparecer no orçamento.</small>
+            </label>
+
+            <label className="field">
+              <span className="field-label">Nome da empresa</span>
+              <div className="input-wrap">
+                <input
+                  type="text"
+                  value={values.companyName}
+                  onChange={handleTextChange('companyName')}
+                  placeholder="Ex.: Minha Empresa 3D"
+                  aria-label="Nome da empresa"
+                />
+              </div>
+              <small>Esse nome aparecerá no topo do PDF gerado.</small>
+            </label>
+
+            <label className="field">
+              <span className="field-label">Nome do cliente</span>
+              <div className="input-wrap">
+                <input
+                  type="text"
+                  value={values.clientName}
+                  onChange={handleTextChange('clientName')}
+                  placeholder="Ex.: João Silva"
+                  aria-label="Nome do cliente"
+                />
+              </div>
+              <small>Nome da pessoa ou empresa que receberá o orçamento.</small>
+            </label>
+
+            <label className="field field-full">
+              <span className="field-label">Descrição do produto</span>
+              <div className="textarea-wrap">
+                <textarea
+                  value={values.productDescription}
+                  onChange={handleTextChange('productDescription')}
+                  placeholder="Descreva a peça, cor, acabamento, quantidade ou observações."
+                  rows={4}
+                  aria-label="Descrição do produto"
+                />
+              </div>
+              <small>Essa descrição aparecerá no PDF do orçamento.</small>
+            </label>
+
+            <label className="field">
+              <span className="field-label">Validade do orçamento</span>
+              <div className="input-wrap">
+                <input
+                  type="date"
+                  value={values.quoteExpiryDate}
+                  onChange={handleTextChange('quoteExpiryDate')}
+                  aria-label="Data de validade do orçamento"
+                />
+              </div>
+              <small>Informe até quando este valor será válido.</small>
+            </label>
+          </div>
+        </section>
+
+        <section className="panel preview-panel">
+          <div className="panel-header">
+            <h2>Prévia do orçamento</h2>
+          </div>
+
+          <div ref={pdfRef} className="pdf-document">
+            <div className="pdf-header">
+              <div className="pdf-brand-block">
+                {uploadedLogo ? (
+                  <img
+                    src={uploadedLogo}
+                    alt="Logo enviada para o orçamento"
+                    className="pdf-client-logo"
+                  />
+                ) : (
+                  <img
+                    src={logoT3D}
+                    alt="Logo padrão da aplicação"
+                    className="pdf-client-logo"
+                  />
+                )}
+
+                <div>
+                  <h3>Orçamento de Impressão 3D</h3>
+                  <p>{values.companyName || 'Empresa não informada'}</p>
+                </div>
+              </div>
+
+              <div className="pdf-meta">
+                <span>Validade</span>
+                <strong>{formatDate(values.quoteExpiryDate)}</strong>
+              </div>
+            </div>
+
+            <div className="pdf-section">
+              <span className="pdf-label">Cliente</span>
+              <strong>{values.clientName || 'Não informado'}</strong>
+            </div>
+
+            <div className="pdf-section">
+              <span className="pdf-label">Descrição do produto</span>
+              <p>{values.productDescription || 'Não informada'}</p>
+            </div>
+
+            <div className="pdf-values pdf-values-single">
+              <div className="pdf-value-card">
+                <span>Valor total do orçamento</span>
+                <strong>{formatCurrency(numericValues.salePrice)}</strong>
+              </div>
+            </div>
           </div>
         </section>
       </main>
