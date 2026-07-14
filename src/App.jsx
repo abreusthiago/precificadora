@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import logoT3D from './assets/logo-t3d.jpg'
 
 const initialValues = {
   filamentKgPrice: '95',
@@ -9,6 +10,10 @@ const initialValues = {
   packagingCost: '3',
   otherCosts: '2',
   profitPercent: '40',
+  currentSize: '',
+  currentUnit: 'cm',
+  desiredSize: '',
+  desiredUnit: 'cm',
 }
 
 const fieldConfig = [
@@ -69,6 +74,14 @@ function parsePositiveNumber(value) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
 }
 
+function convertToMm(value, unit) {
+  const numericValue = parsePositiveNumber(value)
+
+  if (unit === 'cm') return numericValue * 10
+  if (unit === 'm') return numericValue * 1000
+  return numericValue
+}
+
 function formatCurrency(value) {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -120,11 +133,42 @@ export default function App() {
     }
   }, [values])
 
+  const scaleValues = useMemo(() => {
+    const currentSizeMm = convertToMm(values.currentSize, values.currentUnit)
+    const desiredSizeMm = convertToMm(values.desiredSize, values.desiredUnit)
+
+    const scalePercent =
+      currentSizeMm > 0 ? (desiredSizeMm / currentSizeMm) * 100 : 0
+
+    let scaleLabel = 'Informe os tamanhos para calcular'
+    if (currentSizeMm > 0 && desiredSizeMm > 0) {
+      if (scalePercent > 100) {
+        scaleLabel = 'Ampliar a peça'
+      } else if (scalePercent < 100) {
+        scaleLabel = 'Reduzir a peça'
+      } else {
+        scaleLabel = 'Manter o tamanho atual'
+      }
+    }
+
+    return {
+      currentSizeMm,
+      desiredSizeMm,
+      scalePercent,
+      scaleLabel,
+    }
+  }, [values.currentSize, values.currentUnit, values.desiredSize, values.desiredUnit])
+
   const handleChange = (key) => (event) => {
     const nextValue = event.target.value
     if (/^[0-9]*[.,]?[0-9]*$/.test(nextValue) || nextValue === '') {
       setValues((current) => ({ ...current, [key]: nextValue }))
     }
+  }
+
+  const handleUnitChange = (key) => (event) => {
+    const nextValue = event.target.value
+    setValues((current) => ({ ...current, [key]: nextValue }))
   }
 
   const resetForm = () => setValues(initialValues)
@@ -139,6 +183,12 @@ export default function App() {
       `Custo total: ${formatCurrency(numericValues.totalCost)}`,
       `Lucro (${formatNumber(numericValues.profitPercent)}%): ${formatCurrency(numericValues.profitValue)}`,
       `Preço sugerido: ${formatCurrency(numericValues.salePrice)}`,
+      '',
+      'Escala de tamanho',
+      `Tamanho atual: ${values.currentSize || 0} ${values.currentUnit}`,
+      `Tamanho desejado: ${values.desiredSize || 0} ${values.desiredUnit}`,
+      `Escala necessária: ${formatNumber(scaleValues.scalePercent)}%`,
+      `Ação: ${scaleValues.scaleLabel}`,
     ].join('\n')
 
     try {
@@ -154,12 +204,22 @@ export default function App() {
       <main className="container">
         <section className="hero-card">
           <div>
-            <span className="eyebrow">Precificadora 3D</span>
-            <h1>Calcule o preço de venda da sua impressão 3D</h1>
+            <div className="brand">
+              <img
+                src={logoT3D}
+                alt="Logo da T3D Tudo em 3D"
+                className="brand-logo"
+              />
+
+              <div>
+                <span className="eyebrow">T3D · Tudo em 3D</span>
+                <h1>Calcule o preço e a escala da sua impressão 3D</h1>
+              </div>
+            </div>
+
             <p>
-              Informe filamento, material usado, tempo, energia, consumo,
-              embalagem, outros custos e a margem de lucro para obter um preço
-              final sugerido.
+              Descubra por quanto vender sua peça e também descubra qual porcentagem de
+              escala usar para ampliar ou reduzir o modelo até o tamanho desejado.
             </p>
           </div>
 
@@ -248,6 +308,82 @@ export default function App() {
               </p>
             </div>
           </aside>
+        </section>
+
+        <section className="panel scale-panel">
+          <div className="panel-header">
+            <h2>Escala de tamanho</h2>
+          </div>
+
+          <div className="scale-grid">
+            <label className="field">
+              <span className="field-label">Tamanho atual</span>
+              <div className="inline-input-group">
+                <div className="input-wrap">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={values.currentSize}
+                    onChange={handleChange('currentSize')}
+                    placeholder="0"
+                    aria-label="Tamanho atual"
+                  />
+                </div>
+
+                <select
+                  className="unit-select"
+                  value={values.currentUnit}
+                  onChange={handleUnitChange('currentUnit')}
+                  aria-label="Unidade do tamanho atual"
+                >
+                  <option value="mm">mm</option>
+                  <option value="cm">cm</option>
+                  <option value="m">m</option>
+                </select>
+              </div>
+
+              <small>Informe a medida atual da peça.</small>
+            </label>
+
+            <label className="field">
+              <span className="field-label">Tamanho desejado</span>
+              <div className="inline-input-group">
+                <div className="input-wrap">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={values.desiredSize}
+                    onChange={handleChange('desiredSize')}
+                    placeholder="0"
+                    aria-label="Tamanho desejado"
+                  />
+                </div>
+
+                <select
+                  className="unit-select"
+                  value={values.desiredUnit}
+                  onChange={handleUnitChange('desiredUnit')}
+                  aria-label="Unidade do tamanho desejado"
+                >
+                  <option value="mm">mm</option>
+                  <option value="cm">cm</option>
+                  <option value="m">m</option>
+                </select>
+              </div>
+
+              <small>Informe a medida final que você quer atingir.</small>
+            </label>
+          </div>
+
+          <div className="scale-result-card">
+            <span>Escala necessária no slicer</span>
+            <strong>{formatNumber(scaleValues.scalePercent)}%</strong>
+            <p>{scaleValues.scaleLabel}</p>
+            <small>
+              Tamanho atual: {formatNumber(scaleValues.currentSizeMm)} mm ·
+              Tamanho desejado: {formatNumber(scaleValues.desiredSizeMm)} mm
+            </small>
+          </div>
         </section>
       </main>
     </div>
