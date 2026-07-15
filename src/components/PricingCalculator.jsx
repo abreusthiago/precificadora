@@ -2,14 +2,14 @@ import { useMemo, useRef, useState } from 'react'
 import html2pdf from 'html2pdf.js'
 
 const initialPricingValues = {
-  filamentKgPrice: '95',
-  materialGrams: '120',
-  printHours: '6',
-  energyPrice: '0.95',
-  printerWatts: '180',
-  packagingCost: '3',
-  otherCosts: '2',
-  profitPercent: '40',
+  filamentKgPrice: '',
+  materialGrams: '',
+  printHours: '',
+  energyPrice: '',
+  printerWatts: '',
+  packagingCost: '',
+  otherCosts: '',
+  profitPercent: '',
   marketplacePercent: '',
   companyName: '',
   clientName: '',
