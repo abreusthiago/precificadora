@@ -3,12 +3,13 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
-"scripts": {
-  "dev": "vite",
-  "build": "chmod +x node_modules/.bin/vite && vite build",
-  "preview": "vite preview"
-},
+  "scripts": {
+    "dev": "vite",
+    "build": "chmod +x node_modules/.bin/vite && vite build",
+    "preview": "vite preview"
+  },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "html2pdf.js": "^0.14.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"

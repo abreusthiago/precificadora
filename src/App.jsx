@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import PricingCalculator from './components/PricingCalculator'
 import ScaleCalculator from './components/ScaleCalculator'
 
@@ -61,6 +62,7 @@ export default function App() {
       {activeView === 'scale' && (
         <ScaleCalculator onBack={() => setActiveView('home')} />
       )}
+      <Analytics />
     </div>
   )
 }
